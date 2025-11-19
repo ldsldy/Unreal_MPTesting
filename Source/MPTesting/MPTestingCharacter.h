@@ -69,5 +69,11 @@ public:
 	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	/** Returns FollowCamera subobject **/
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
+
+public:
+	//Pointer to the online session Interface
+	//스마트 포인터, 스레드 세이프
+	//TSharedPtr: 참조 카운팅을 사용하여 객체의 수명을 관리하는 스마트 포인터
+	TSharedPtr<class IOnlineSession, ESPMode::ThreadSafe> OnlineSessionInterface;
 };
 
