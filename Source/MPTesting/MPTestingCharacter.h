@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "Logging/LogMacros.h"
+#include "Interfaces/OnlineSessionInterface.h"
 #include "MPTestingCharacter.generated.h"
 
 class USpringArmComponent;
@@ -75,5 +76,16 @@ public:
 	//스마트 포인터, 스레드 세이프
 	//TSharedPtr: 참조 카운팅을 사용하여 객체의 수명을 관리하는 스마트 포인터
 	TSharedPtr<class IOnlineSession, ESPMode::ThreadSafe> OnlineSessionInterface;
+
+protected:
+
+	UFUNCTION(BlueprintCallable)
+	void CreateGameSession();
+
+	void OnCreateSessionComplete(FName SessionName, bool bWasSuccessful);
+
+private:
+	// 세션이 생성된 후 호출되는 델리게이트 함수
+	FOnCreateSessionCompleteDelegate CreateSessionCompleteDelegate;
 };
 

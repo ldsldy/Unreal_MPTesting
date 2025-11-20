@@ -12,14 +12,15 @@
 #include "InputActionValue.h"
 #include "Kismet/GameplayStatics.h"
 #include "OnlineSubsystem.h"
-#include "Interfaces/OnlineSessionInterface.h"
+#include "OnlineSessionSettings.h"
 
 DEFINE_LOG_CATEGORY(LogTemplateCharacter);
 
 //////////////////////////////////////////////////////////////////////////
 // AMPTestingCharacter
 
-AMPTestingCharacter::AMPTestingCharacter()
+AMPTestingCharacter::AMPTestingCharacter() :
+	CreateSessionCompleteDelegate(FOnCreateSessionCompleteDelegate::CreateUObject(this, &ThisClass::OnCreateSessionComplete)) //생성자 함수 실행 전에 생성자 리스트 초기화
 {
 	// Set size for collision capsule
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
@@ -56,6 +57,7 @@ AMPTestingCharacter::AMPTestingCharacter()
 	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
 	// are set in the derived blueprint asset named ThirdPersonCharacter (to avoid direct content references in C++)
 
+	// 온라인 서브 시스템을 가져와서 세션 인터페이스를 초기화
 	IOnlineSubsystem* OnlineSubsystem = IOnlineSubsystem::Get();
 	if (OnlineSubsystem)
 	{
@@ -80,6 +82,60 @@ void AMPTestingCharacter::BeginPlay()
 	Super::BeginPlay();
 }
 
+void AMPTestingCharacter::CreateGameSession()
+{
+	if (!OnlineSessionInterface.IsValid())
+	{
+		return;
+	}
+
+	// 온라인 세션 인터페이스가 유효하다면
+	// 기존 세션이 있는지 확인하고, 있다면 삭제
+	auto ExisitingSession = OnlineSessionInterface->GetNamedSession(NAME_GameSession);
+	if (ExisitingSession != nullptr)
+	{
+		OnlineSessionInterface->DestroySession(NAME_GameSession);
+	}
+
+	// OnlineSessionInterface 객체의 내부에 세션 생성 완료 델리게이트를 추가
+	OnlineSessionInterface->AddOnCreateSessionCompleteDelegate_Handle(CreateSessionCompleteDelegate);
+
+	//세션 생성
+	//세션 설정 객체 생성 
+	TSharedPtr<FOnlineSessionSettings> SessionSettings = MakeShareable(new FOnlineSessionSettings());
+	//로컬 플레이어를 호스트로 설정하여 고유한 네트워크 ID를 가져옴
+	const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
+	//세션 생성 요청
+	OnlineSessionInterface->CreateSession(*LocalPlayer->GetPreferredUniqueNetId(), NAME_GameSession, *SessionSettings);
+}
+
+void AMPTestingCharacter::OnCreateSessionComplete(FName SessionName, bool bWasSuccessful)
+{
+	if (bWasSuccessful)
+	{
+		if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(
+				-1,
+				15.f,
+				FColor::Blue,
+				FString::Printf(TEXT("Create session %s"), *SessionName.ToString())
+			);
+		}
+	}
+	else
+	{
+		if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(
+				-1,
+				15.f,
+				FColor::Red,
+				FString::Printf(TEXT("Failed to create session"))
+			);
+		}
+	}
+}
 
 //////////////////////////////////////////////////////////////////////////
 // Input
