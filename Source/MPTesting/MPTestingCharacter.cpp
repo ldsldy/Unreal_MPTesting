@@ -101,14 +101,22 @@ void AMPTestingCharacter::CreateGameSession()
 	OnlineSessionInterface->AddOnCreateSessionCompleteDelegate_Handle(CreateSessionCompleteDelegate);
 
 	//세션 생성
-	//세션 설정 객체 생성 
+	//세션 설정 객체 생성 및 세션 설정
 	TSharedPtr<FOnlineSessionSettings> SessionSettings = MakeShareable(new FOnlineSessionSettings());
+	SessionSettings->bIsLANMatch = false;			//로컬 네트워크 매치 없음
+	SessionSettings->NumPublicConnections = 4;		//최대 플레이어 수
+	SessionSettings->bAllowJoinInProgress = true;	//진행 중인 세션 참여 허용(중도 참여 허용)
+	SessionSettings->bAllowJoinViaPresence = true;  //지역기반 세션 참여 허용
+	SessionSettings->bShouldAdvertise = true;		//세션 스팀 광고 허용
+	SessionSettings->bUsesPresence = true;			//지역기반 진행중 세션 사용
+	
 	//로컬 플레이어를 호스트로 설정하여 고유한 네트워크 ID를 가져옴
 	const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
 	//세션 생성 요청
 	OnlineSessionInterface->CreateSession(*LocalPlayer->GetPreferredUniqueNetId(), NAME_GameSession, *SessionSettings);
 }
 
+// 게임 세션 생성 완료 시에 스팀에서 호출되는 델리게이트 함수
 void AMPTestingCharacter::OnCreateSessionComplete(FName SessionName, bool bWasSuccessful)
 {
 	if (bWasSuccessful)
