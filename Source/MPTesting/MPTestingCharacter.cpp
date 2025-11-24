@@ -20,7 +20,8 @@ DEFINE_LOG_CATEGORY(LogTemplateCharacter);
 // AMPTestingCharacter
 
 AMPTestingCharacter::AMPTestingCharacter() :
-	CreateSessionCompleteDelegate(FOnCreateSessionCompleteDelegate::CreateUObject(this, &ThisClass::OnCreateSessionComplete)) //생성자 함수 실행 전에 생성자 리스트 초기화
+	CreateSessionCompleteDelegate(FOnCreateSessionCompleteDelegate::CreateUObject(this, &ThisClass::OnCreateSessionComplete)), //생성자 함수 실행 전에 생성자 리스트 초기화
+	FindSessionsCompleteDelegate(FOnFindSessionsCompleteDelegate::CreateUObject(this, &ThisClass::OnFindSessionsComplete))
 {
 	// Set size for collision capsule
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
@@ -109,11 +110,35 @@ void AMPTestingCharacter::CreateGameSession()
 	SessionSettings->bAllowJoinViaPresence = true;  //지역기반 세션 참여 허용
 	SessionSettings->bShouldAdvertise = true;		//세션 스팀 광고 허용
 	SessionSettings->bUsesPresence = true;			//지역기반 진행중 세션 사용
+	SessionSettings->bUseLobbiesIfAvailable = true; //로비 사용 가능
 	
 	//로컬 플레이어를 호스트로 설정하여 고유한 네트워크 ID를 가져옴
 	const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
 	//세션 생성 요청
 	OnlineSessionInterface->CreateSession(*LocalPlayer->GetPreferredUniqueNetId(), NAME_GameSession, *SessionSettings);
+}
+
+void AMPTestingCharacter::JoinGameSession()
+{
+	//세션 검색
+	if(!OnlineSessionInterface.IsValid())
+	{
+		return;
+	}
+	
+	// OnlineSessionInterface 객체의 내부에 세션 검색 완료 델리게이트를 추가
+	OnlineSessionInterface->AddOnFindSessionsCompleteDelegate_Handle(FindSessionsCompleteDelegate);
+
+	//세션 검색 객체 생성
+	SessionSearch = MakeShareable(new FOnlineSessionSearch());
+	SessionSearch->MaxSearchResults = 10000;		//최대 검색 결과 수
+	SessionSearch->bIsLanQuery = false;			    //로컬 네트워크 아님
+	SessionSearch->QuerySettings.Set(SEARCH_PRESENCE, true, EOnlineComparisonOp::Equals); //우리가 찾은 세션을 사용하도록 설정
+
+	// 고유한 네트워크 ID를 얻고 세션 검색 요청
+	const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
+	OnlineSessionInterface->FindSessions(*LocalPlayer->GetPreferredUniqueNetId(), SessionSearch.ToSharedRef());
+
 }
 
 // 게임 세션 생성 완료 시에 스팀에서 호출되는 델리게이트 함수
@@ -145,6 +170,24 @@ void AMPTestingCharacter::OnCreateSessionComplete(FName SessionName, bool bWasSu
 	}
 }
 
+
+void AMPTestingCharacter::OnFindSessionsComplete(bool bwasSuccessful)
+{
+	for (auto Result : SessionSearch->SearchResults)
+	{
+		FString Id = Result.GetSessionIdStr();		   //세션 ID
+		FString User = Result.Session.OwningUserName;  //세션 소유자 이름
+		if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(
+				-1,
+				15.f,
+				FColor::Cyan,
+				FString::Printf(TEXT("ID: %s, User: %s"), *Id, *User)
+				);
+		}
+	}
+}
 //////////////////////////////////////////////////////////////////////////
 // Input
 
