@@ -13,6 +13,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "OnlineSubsystem.h"
 #include "OnlineSessionSettings.h"
+#include "Online/OnlineSessionNames.h"
 
 DEFINE_LOG_CATEGORY(LogTemplateCharacter);
 
@@ -21,7 +22,8 @@ DEFINE_LOG_CATEGORY(LogTemplateCharacter);
 
 AMPTestingCharacter::AMPTestingCharacter() :
 	CreateSessionCompleteDelegate(FOnCreateSessionCompleteDelegate::CreateUObject(this, &ThisClass::OnCreateSessionComplete)), //생성자 함수 실행 전에 생성자 리스트 초기화
-	FindSessionsCompleteDelegate(FOnFindSessionsCompleteDelegate::CreateUObject(this, &ThisClass::OnFindSessionsComplete))
+	FindSessionsCompleteDelegate(FOnFindSessionsCompleteDelegate::CreateUObject(this, &ThisClass::OnFindSessionsComplete)),
+	JoinSessionCompleteDelegate(FOnJoinSessionCompleteDelegate::CreateUObject(this, &ThisClass::OnJoinSessionComplete))
 {
 	// Set size for collision capsule
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
@@ -111,7 +113,8 @@ void AMPTestingCharacter::CreateGameSession()
 	SessionSettings->bShouldAdvertise = true;		//세션 스팀 광고 허용
 	SessionSettings->bUsesPresence = true;			//지역기반 진행중 세션 사용
 	SessionSettings->bUseLobbiesIfAvailable = true; //로비 사용 가능
-	
+	SessionSettings->Set(FName("MatchType"), FString("FreeForAll"), EOnlineDataAdvertisementType::ViaOnlineServiceAndPing); //매치를 위한 키와 값을 설정하여 바인딩, 키와 값이 일치하는 세션을 찾아서 접속하기 위함.
+
 	//로컬 플레이어를 호스트로 설정하여 고유한 네트워크 ID를 가져옴
 	const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
 	//세션 생성 요청
@@ -155,6 +158,9 @@ void AMPTestingCharacter::OnCreateSessionComplete(FName SessionName, bool bWasSu
 				FString::Printf(TEXT("Create session %s"), *SessionName.ToString())
 			);
 		}
+
+		UWorld* World = GetWorld();
+		World->ServerTravel(FString("/Game/ThirdPersonCPP/Maps/Lobby?listen"));
 	}
 	else
 	{
@@ -173,10 +179,16 @@ void AMPTestingCharacter::OnCreateSessionComplete(FName SessionName, bool bWasSu
 
 void AMPTestingCharacter::OnFindSessionsComplete(bool bwasSuccessful)
 {
+	if (!OnlineSessionInterface.IsValid())
+		return;
+
 	for (auto Result : SessionSearch->SearchResults)
 	{
 		FString Id = Result.GetSessionIdStr();		   //세션 ID
 		FString User = Result.Session.OwningUserName;  //세션 소유자 이름
+		FString MatchType;
+		Result.Session.SessionSettings.Get(FName("MatchType"), MatchType);
+
 		if (GEngine)
 		{
 			GEngine->AddOnScreenDebugMessage(
@@ -186,8 +198,47 @@ void AMPTestingCharacter::OnFindSessionsComplete(bool bwasSuccessful)
 				FString::Printf(TEXT("ID: %s, User: %s"), *Id, *User)
 				);
 		}
+
+		//매치 타입이 FreeForAll이면 세션에 참여
+		if (MatchType == FString("FreeForAll"))
+		{
+			if (GEngine)
+			{
+				GEngine->AddOnScreenDebugMessage(
+					-1,
+					15.f,
+					FColor::Cyan,
+					FString::Printf(TEXT("Jointing  Match Type: %s"), *MatchType)
+				);
+			}
+
+			OnlineSessionInterface->AddOnJoinSessionCompleteDelegate_Handle(JoinSessionCompleteDelegate);
+			
+			// 검색한 세션의 검색 결과와 로컬 플레이어의 고유한 네트워크 ID를 사용하여 세션 참여 요청
+			const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
+			OnlineSessionInterface->JoinSession(*LocalPlayer->GetPreferredUniqueNetId(), NAME_GameSession, Result);
+		}
 	}
 }
+
+void AMPTestingCharacter::OnJoinSessionComplete(FName SessionName, EOnJoinSessionCompleteResult::Type Result)
+{
+	if (!OnlineSessionInterface.IsValid())
+		return;
+
+	//매치 참여를 위한 플랫폼별 연결 정보(주소)를 반환
+	FString Address;
+	if (OnlineSessionInterface->GetResolvedConnectString(NAME_GameSession, Address))
+	{
+		// 주소가 유효하면 해당 주소롤 클라이언트 트래블 실행(절대 경로)
+		APlayerController* PlayerController = GetGameInstance()->GetFirstLocalPlayerController();
+		if (PlayerController)
+		{
+			PlayerController->ClientTravel(Address, ETravelType::TRAVEL_Absolute);
+		}
+	}
+}
+
 //////////////////////////////////////////////////////////////////////////
 // Input
 
