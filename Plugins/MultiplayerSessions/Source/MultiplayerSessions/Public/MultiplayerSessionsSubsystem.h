@@ -11,6 +11,10 @@
 // 메뉴에서 바인딩할 델리게이트 선언
 //
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FMultiplayerOnCreateSessionComplete, bool, bWasSuccessful);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FMultiplayerOnFindSessionsComplete, const TArray<FOnlineSessionSearchResult>& SessionResults, bool bWasSuccessful);
+DECLARE_MULTICAST_DELEGATE_OneParam(FMultiplayerOnJoinSesssionComplete, EOnJoinSessionCompleteResult::Type Result);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FMultiplayerOnDestroySessionComplete, bool, bWasSuccessful);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FMultiplayerOnStartSessionComplete, bool, bWasSuccessful);
 
 /**
  * 
@@ -42,8 +46,12 @@ public:
 	// 메뉴에서 바인딩할 델리게이트들
 	//
 	FMultiplayerOnCreateSessionComplete MultiPlayerOnCreateSessionComplete;
+	FMultiplayerOnFindSessionsComplete MultiPlayerOnFindSessionsComplete;
+	FMultiplayerOnJoinSesssionComplete MultiplayerOnJoinSesssionComplete;
+	FMultiplayerOnDestroySessionComplete MultiplayerOnDestroySessionComplete;
+	FMultiplayerOnStartSessionComplete MultiplayerOnStartSessionComplete;
 
-protected:
+protected: 
 	//
 	// 델리게이트 리스트를 위한 콜백 함수들
 	// 클래스 밖에서 호출될 일 없음

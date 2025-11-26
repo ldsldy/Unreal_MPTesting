@@ -31,7 +31,6 @@ void UMultiplayerSessionsSubsystem::OnCreateSessionComplete(FName SessionName, b
 
 	// "세션 생성 완료" 델리게이트를 브로드캐스트
 	MultiPlayerOnCreateSessionComplete.Broadcast(bWasSuccessful);
-
 }
 void UMultiplayerSessionsSubsystem::OnFindSessionsComplete(bool bwasSuccessful)
 {
@@ -76,6 +75,7 @@ void UMultiplayerSessionsSubsystem::CreateSession(int32 NumPublicConnections, FS
 	LastSessionSettings->bAllowJoinViaPresence = true;					// 참가 조건
 	LastSessionSettings->bShouldAdvertise = true;						// 세션 광고 여부
 	LastSessionSettings->bUsesPresence = true;							// 프레즌스(사용자의 현재 상태 정보) 사용 여부
+	LastSessionSettings->bUseLobbiesIfAvailable = true;					// 로비 사용 여부
 	LastSessionSettings->Set(FName("MatchType"), MatchType, EOnlineDataAdvertisementType::ViaOnlineServiceAndPing); // 연결을 위한 매치 타입 설정
 
 	// 로컬 플레이어의 네트워크 ID와 세션 세팅을 사용하여 세션 생성 시도
