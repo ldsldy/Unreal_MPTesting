@@ -16,10 +16,17 @@ class MULTIPLAYERSESSIONS_API UMenu : public UUserWidget
 	
 public:
 	UFUNCTION(BlueprintCallable)
-	void MenuSetup();
+	void MenuSetup(int32 NumberOfPublicConnections= 4, FString TypeOfMatch = FString(TEXT("FreeForAll")));
 
 protected:
 	virtual bool Initialize() override;
+	virtual void NativeDestruct() override;
+
+	//
+	// 멀티플레이어 세션 서브시스템의 델리게이트에 콜백 함수 선언
+	//
+	UFUNCTION()
+	void OnCreateSession(bool bWasSuccessful);
 
 private:
 	// 바인딩할려면 UPROPERTY가 있고 이름이 같아야함
@@ -34,6 +41,12 @@ private:
 	UFUNCTION()
 	void JoinButtonClicked();
 
+	UFUNCTION()
+	void MenuTearDown();
+
 	// 온라인 세션 함수를 사용하기 위한 서브시스템 포인터
 	TObjectPtr<class UMultiplayerSessionsSubsystem> MultiplayerSessionsSubsystem;
+
+	int32 NumPublicConnections{4};
+	FString MatchType{TEXT("FreeForAll")};
 };
