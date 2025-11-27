@@ -4,6 +4,8 @@
 #include "MultiplayerSessionsSubsystem.h"
 #include "OnlineSubsystem.h"
 #include "OnlineSessionSettings.h"
+#include "Online/OnlineSessionNames.h"
+
 
 UMultiplayerSessionsSubsystem::UMultiplayerSessionsSubsystem():
 	CreateSessionCompleteDelegate(FOnCreateSessionCompleteDelegate::CreateUObject(this, &ThisClass::OnCreateSessionComplete)),
@@ -34,11 +36,28 @@ void UMultiplayerSessionsSubsystem::OnCreateSessionComplete(FName SessionName, b
 }
 void UMultiplayerSessionsSubsystem::OnFindSessionsComplete(bool bwasSuccessful)
 {
+	if (SessionInterface)
+	{
+		SessionInterface->ClearOnCancelFindSessionsCompleteDelegate_Handle(FindSessionsCompleteDelegateHandle);
+	}
 
+	// 추가적인 검사를 통해 다시 한번 세션 검색 결과를 확인
+	if (LastSessionSearch->SearchResults.Num() <= 0)
+	{
+		MultiPlayerOnFindSessionsComplete.Broadcast(TArray<FOnlineSessionSearchResult>(), false);
+		return;
+	}
+
+	MultiPlayerOnFindSessionsComplete.Broadcast(LastSessionSearch->SearchResults, bwasSuccessful);
 }
 void UMultiplayerSessionsSubsystem::OnJoinSessionComplete(FName SessionName, EOnJoinSessionCompleteResult::Type Result)
 {
+	if (SessionInterface)
+	{
+		SessionInterface->ClearOnJoinSessionCompleteDelegate_Handle(JoinSessionCompleteDelegateHandle);
+	}
 
+	MultiplayerOnJoinSesssionComplete.Broadcast(Result);
 }
 void UMultiplayerSessionsSubsystem::OnDestroySessionComplete(FName SessionName, bool bWasSuccessful)
 {
@@ -77,6 +96,7 @@ void UMultiplayerSessionsSubsystem::CreateSession(int32 NumPublicConnections, FS
 	LastSessionSettings->bUsesPresence = true;							// 프레즌스(사용자의 현재 상태 정보) 사용 여부
 	LastSessionSettings->bUseLobbiesIfAvailable = true;					// 로비 사용 여부
 	LastSessionSettings->Set(FName("MatchType"), MatchType, EOnlineDataAdvertisementType::ViaOnlineServiceAndPing); // 연결을 위한 매치 타입 설정
+	LastSessionSettings->BuildUniqueId = 1;								// 고유 ID 빌드
 
 	// 로컬 플레이어의 네트워크 ID와 세션 세팅을 사용하여 세션 생성 시도
 	const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
@@ -89,12 +109,48 @@ void UMultiplayerSessionsSubsystem::CreateSession(int32 NumPublicConnections, FS
 		MultiPlayerOnCreateSessionComplete.Broadcast(false);
 	}
 }
-void UMultiplayerSessionsSubsystem::FindSessions(int32 MaxSerachResults)
+void UMultiplayerSessionsSubsystem::FindSessions(int32 MaxSearchResults)
 {
+	if (!SessionInterface.IsValid())
+	{
+		return;
+	}
+	FindSessionsCompleteDelegateHandle = SessionInterface->AddOnFindSessionsCompleteDelegate_Handle(FindSessionsCompleteDelegate);
+	
+	LastSessionSearch = MakeShareable(new FOnlineSessionSearch());
+	LastSessionSearch->MaxSearchResults = MaxSearchResults;
+	LastSessionSearch->bIsLanQuery = IOnlineSubsystem::Get()->GetSubsystemName() == "NULL" ? true : false;
+	LastSessionSearch->QuerySettings.Set(SEARCH_LOBBIES, true, EOnlineComparisonOp::Equals);
 
+	const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
+	if (!SessionInterface->FindSessions(*LocalPlayer->GetPreferredUniqueNetId(), LastSessionSearch.ToSharedRef()))
+	{
+		SessionInterface->ClearOnEndSessionCompleteDelegate_Handle(FindSessionsCompleteDelegateHandle);
+		
+		// "세션 찾기 실패" 델리게이트를 빈 세션 검색 결과 배열과 함께 브로드캐스트
+		MultiPlayerOnFindSessionsComplete.Broadcast(TArray<FOnlineSessionSearchResult>(), false);
+	}
+	
 }
 void UMultiplayerSessionsSubsystem::JoinSession(const FOnlineSessionSearchResult& SessionResult)
 {
+	if (!SessionInterface.IsValid())
+	{
+		// 온라인 세션 인터페이스가 유효하지 않으면
+		// "알 수 없는 오류로 세션 참가 실패" 델리게이트 브로드캐스트
+		MultiplayerOnJoinSesssionComplete.Broadcast(EOnJoinSessionCompleteResult::UnknownError);
+		return;
+	}
+	
+	JoinSessionCompleteDelegateHandle = SessionInterface->AddOnJoinSessionCompleteDelegate_Handle(JoinSessionCompleteDelegate);
+
+	const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
+	if (!SessionInterface->JoinSession(*LocalPlayer->GetPreferredUniqueNetId(), NAME_GameSession, SessionResult))
+	{
+		SessionInterface->ClearOnJoinSessionCompleteDelegate_Handle(JoinSessionCompleteDelegateHandle);
+		// "알 수 없는 오류로 세션 참가 실패" 델리게이트 브로드캐스트		
+		MultiplayerOnJoinSesssionComplete.Broadcast(EOnJoinSessionCompleteResult::UnknownError);
+	}
 
 }
 void UMultiplayerSessionsSubsystem::DestroySession()

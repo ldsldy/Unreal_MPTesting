@@ -5,7 +5,7 @@
 #include "Components/Button.h"
 #include "MultiplayerSessionsSubsystem.h"
 #include "OnlineSessionSettings.h"
-#include "Interfaces/OnlineSessionInterface.h"
+#include "OnlineSubsystem.h"
 
 void UMenu::MenuSetup(int32 NumberOfPublicConnections, FString TypeOfMatch)
 {
@@ -118,10 +118,47 @@ void UMenu::OnCreateSession(bool bWasSuccessful)
 
 void UMenu::OnFindSessions(const TArray<FOnlineSessionSearchResult>& SessionResults, bool bWasSuccessful)
 {
+	if(MultiplayerSessionsSubsystem == nullptr)
+	{
+		return;
+	}
+
+	for (auto Result : SessionResults)
+	{
+		// "MatchType"라는 세션 설정 값을 하나하나 가져와서 SettingsValue에 저장
+		FString SettingsValue;
+		Result.Session.SessionSettings.Get(FName("MatchType"), SettingsValue);
+		if (SettingsValue == MatchType)
+		{
+			// 원하는 매치 타입과 일치하는 세션을 찾으면 JoinSession 함수 호출
+			MultiplayerSessionsSubsystem->JoinSession(Result);
+			return;
+		}
+	}
 }
 
 void UMenu::OnJoinSession(EOnJoinSessionCompleteResult::Type Result)
 {
+	// IOnlineSubsystem은 세션 인터페이스를 제공
+	// 세션 인터페이스는 세션 정보를 가진 "NAME_GameSession"라는 이름으로 세션을 관리
+	IOnlineSubsystem* Subsystem = IOnlineSubsystem::Get();
+	if (Subsystem)
+	{
+		// OnlineSubsystem을 통해 세션 인터페이스에 접근
+		IOnlineSessionPtr SessionInterface = Subsystem->GetSessionInterface();
+		if (SessionInterface.IsValid())
+		{
+			// 세션에 성공적으로 참가하면 호스트의 주소를 가져와서 클라이언트가 해당 주소로 이동
+			FString Address;
+			SessionInterface->GetResolvedConnectString(NAME_GameSession, Address);
+
+			APlayerController* PlayerController = GetGameInstance()->GetFirstLocalPlayerController();
+			if (PlayerController)
+			{
+				PlayerController->ClientTravel(Address, ETravelType::TRAVEL_Absolute);
+			}
+		}
+	}
 }
 
 void UMenu::OnDestroySession(bool bWasSuccessful)
@@ -143,7 +180,10 @@ void UMenu::HostButtonClicked()
 
 void UMenu::JoinButtonClicked()
 {
-	UE_LOG(LogTemp, Warning, TEXT("Join Button Clicked"));
+	if (MultiplayerSessionsSubsystem)
+	{
+		MultiplayerSessionsSubsystem->FindSessions(10000);
+	}
 }
 
 void UMenu::MenuTearDown()

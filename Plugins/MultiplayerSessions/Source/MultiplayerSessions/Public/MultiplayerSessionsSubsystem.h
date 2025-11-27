@@ -43,7 +43,7 @@ public:
 	void StartSession();
 
 	//
-	// 메뉴에서 바인딩할 델리게이트들
+	// 메뉴와 바인딩할 델리게이트들
 	//
 	FMultiplayerOnCreateSessionComplete MultiPlayerOnCreateSessionComplete;
 	FMultiplayerOnFindSessionsComplete MultiPlayerOnFindSessionsComplete;
@@ -53,7 +53,7 @@ public:
 
 protected: 
 	//
-	// 델리게이트 리스트를 위한 콜백 함수들
+	// 온라인 세션 인터페이스와 바인딩할 델리게이트 리스트를 위한 콜백 함수들
 	// 클래스 밖에서 호출될 일 없음
 	//
 	void OnCreateSessionComplete(FName SessionName, bool bWasSuccessful);
@@ -65,6 +65,7 @@ protected:
 private:
 	IOnlineSessionPtr SessionInterface;
 	TSharedPtr<FOnlineSessionSettings> LastSessionSettings; // 나중에 세팅을 바꿀 수 있도록
+	TSharedPtr<FOnlineSessionSearch> LastSessionSearch;		// 마지막 세션 검색 결과 저장
 
 	//
 	// Online Session Interface 델리게이트 리스트
