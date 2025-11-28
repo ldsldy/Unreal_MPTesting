@@ -25,7 +25,7 @@ void ALobbyGameMode::PostLogin(APlayerController* NewPlayer)
 			{
 				FString PlayerName = PlayerState->GetPlayerName();
 				GEngine->AddOnScreenDebugMessage(-1, 60.f, FColor::Green,
-					FString::Printf(TEXT("%s has joined the game!"), PlayerName));
+					FString::Printf(TEXT("%s has joined the game!"), *PlayerName));
 			}
 
 			
@@ -40,8 +40,17 @@ void ALobbyGameMode::Logout(AController* Exiting)
 	APlayerState* PlayerState = Exiting->GetPlayerState<APlayerState>();
 	if (PlayerState)
 	{
-		FString PlayerName = PlayerState->GetPlayerName();
+		int32 NumberOfPlayers = GameState.Get()->PlayerArray.Num();
+
+		// 디버그 메시지로 현재 접속한 플레이어 수를 출력
+		// -1을 하는 이유는 아직 플레이어의 로그아웃이 GameState의 PlayerArray에서 반영되지 않았기 때문
 		GEngine->AddOnScreenDebugMessage(-1, 60.f, FColor::Green,
-			FString::Printf(TEXT("%s has existed the game!"), PlayerName));
+			FString::Printf(TEXT("Number of Players in Lobby: %d"), NumberOfPlayers - 1));
+
+		FString PlayerName = PlayerState->GetPlayerName();
+		GEngine->AddOnScreenDebugMessage(-1, 60.f, FColor::Yellow,
+			FString::Printf(TEXT("%s has existed the game!"), *PlayerName));
+
+
 	}
 }

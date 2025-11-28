@@ -7,8 +7,10 @@
 #include "OnlineSessionSettings.h"
 #include "OnlineSubsystem.h"
 
-void UMenu::MenuSetup(int32 NumberOfPublicConnections, FString TypeOfMatch)
+void UMenu::MenuSetup(int32 NumberOfPublicConnections, FString TypeOfMatch, FString LobbyPath)
 {
+	// 로비 경로를 받아서 리슨 서버로 설정
+	PathToLobby = FString::Printf(TEXT("%s?listen"), *LobbyPath);
 	NumPublicConnections = NumberOfPublicConnections;
 	MatchType = TypeOfMatch;
 
@@ -85,21 +87,11 @@ void UMenu::OnCreateSession(bool bWasSuccessful)
 {
 	if (bWasSuccessful)
 	{
-		if (GEngine)
-		{
-			GEngine->AddOnScreenDebugMessage(
-				-1,
-				15.f,
-				FColor::Green,
-				FString(TEXT("Session created successfully!"))
-			);
-		}
-
 		// 세션이 성공적으로 생성되면 ServerTravel 함수로 지정된 맵으로 이동
 		UWorld* World = GetWorld();
 		if (World)
 		{
-			World->ServerTravel("/Game/Map/Lobby?listen");
+			World->ServerTravel(PathToLobby);
 		}
 	}
 	else

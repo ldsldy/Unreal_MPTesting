@@ -66,7 +66,7 @@ AMPTestingCharacter::AMPTestingCharacter() :
 	{
 		OnlineSessionInterface = OnlineSubsystem->GetSessionInterface();
 
-		if (GEngine)
+		/*if (GEngine)
 		{
 			GEngine->AddOnScreenDebugMessage(
 				-1,
@@ -74,7 +74,7 @@ AMPTestingCharacter::AMPTestingCharacter() :
 				FColor::Blue,
 				FString::Printf(TEXT("Found Subsystem %s"), *OnlineSubsystem->GetSubsystemName().ToString())
 			);
-		}
+		}*/
 	}
 
 }
@@ -148,7 +148,7 @@ void AMPTestingCharacter::JoinGameSession()
 void AMPTestingCharacter::OnCreateSessionComplete(FName SessionName, bool bWasSuccessful)
 {
 	if (bWasSuccessful)
-	{
+	{/*
 		if (GEngine)
 		{
 			GEngine->AddOnScreenDebugMessage(
@@ -157,14 +157,14 @@ void AMPTestingCharacter::OnCreateSessionComplete(FName SessionName, bool bWasSu
 				FColor::Blue,
 				FString::Printf(TEXT("Create session %s"), *SessionName.ToString())
 			);
-		}
+		}*/
 
 		UWorld* World = GetWorld();
 		World->ServerTravel(FString("/Game/ThirdPersonCPP/Maps/Lobby?listen"));
 	}
 	else
 	{
-		if (GEngine)
+		/*if (GEngine)
 		{
 			GEngine->AddOnScreenDebugMessage(
 				-1,
@@ -172,7 +172,7 @@ void AMPTestingCharacter::OnCreateSessionComplete(FName SessionName, bool bWasSu
 				FColor::Red,
 				FString::Printf(TEXT("Failed to create session"))
 			);
-		}
+		}*/
 	}
 }
 
